@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+
+# Dataset 
+data/
+
+# Model weights
+checkpoints/
+*.pth
+
+# Training logs
+swanlog/
+
+# Claude
+CLAUDE.md
+.claude/
+
+# report
+report.md
