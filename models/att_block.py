@@ -31,7 +31,7 @@ class SELayer(nn.Module):
 
 
 class ChannelAttention(nn.Module):
-    """CBAM 的通道注意力子模块: 同时使用 AvgPool 和 MaxPool 压缩间维度"""
+    """CBAM 的通道注意力子模块: 同时使用 AvgPool 和 MaxPool 压缩空间维度"""
 
     def __init__(self, channels: int, reduction: int = 16):
         super().__init__()
