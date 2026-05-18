@@ -106,6 +106,7 @@ if __name__ == "__main__":
         ckpt_path = sys.argv[2]
         model = _build_model_for_ckpt(ckpt_path)
         load_checkpoint(model, ckpt_path, cfg.device)
+        model = model.to(cfg.device)
         _, _, test_loader = get_dataloaders(
             data_root=cfg.data_root, batch_size=cfg.batch_size,
             num_workers=cfg.num_workers, image_size=cfg.image_size,
@@ -118,6 +119,7 @@ if __name__ == "__main__":
         model = _build_model_for_ckpt(ckpt_path)
         try:
             load_checkpoint(model, ckpt_path, cfg.device)
+            model = model.to(cfg.device)
         except FileNotFoundError:
             print(f"[warn] checkpoint 未找到: {ckpt_path}, 使用随机权重")
 
@@ -141,11 +143,51 @@ if __name__ == "__main__":
         print(f"预测品种: {breed_names[pred_label]}  (置信度: {conf.item():.3f})")
         print(f"结果: {'正确' if pred_label == true_label else '错误'}")
 
+        # 生成标注图片
+        from PIL import ImageDraw, ImageFont
+        from dataset import IMAGENET_MEAN, IMAGENET_STD
+        import numpy as np
+
+        mean = torch.tensor(IMAGENET_MEAN).view(3, 1, 1)
+        std = torch.tensor(IMAGENET_STD).view(3, 1, 1)
+        img = image.cpu() * std + mean
+        img = img.clamp(0, 1).permute(1, 2, 0).numpy()
+        img = (img * 255).astype(np.uint8)
+        pil_img = Image.fromarray(img)
+
+        draw = ImageDraw.Draw(pil_img)
+        text_lines = [
+            f"True: {breed_names[true_label]}",
+            f"Pred: {breed_names[pred_label]} ({conf.item():.2f})",
+        ]
+        color = (0, 255, 0) if pred_label == true_label else (255, 80, 80)
+
+        try:
+            font = ImageFont.truetype("arial.ttf", 12)
+        except Exception:
+            font = ImageFont.load_default()
+
+        # 右下角标注
+        W, H = pil_img.size
+        line_h = 22
+        margin = 12
+        for i, line in enumerate(reversed(text_lines)):
+            bbox = draw.textbbox((0, 0), line, font=font)
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            x = W - tw - margin
+            y = H - (i + 1) * line_h - margin
+            draw.text((x, y), line, fill=color, font=font)
+
+        out_path = "prediction_result.png"
+        pil_img.save(out_path)
+        print(f"图片已保存: {out_path}")
+
     else:
         ckpt_path = "checkpoints/baseline_resnet18/best.pth"
         model = _build_model_for_ckpt(ckpt_path)
         try:
             load_checkpoint(model, ckpt_path, cfg.device)
+            model = model.to(cfg.device)
         except FileNotFoundError:
             print(f"[warn] checkpoint 未找到: {ckpt_path}, 使用随机权重")
         breed, conf = predict_image(model, sys.argv[1], cfg.device, cfg.image_size)
